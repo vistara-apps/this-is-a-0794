@@ -1,4 +1,4 @@
-import React from 'react'
+
 import { Button } from '../ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card'
 import { Check, Crown } from 'lucide-react'
@@ -86,4 +86,3 @@ export function PricingPlans({ currentTier, onSelectPlan }: PricingPlansProps) {
     </div>
   )
 }
-
