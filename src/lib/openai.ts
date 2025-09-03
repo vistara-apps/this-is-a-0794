@@ -6,25 +6,113 @@ const openai = new OpenAI({
   dangerouslyAllowBrowser: true,
 })
 
+/**
+ * Converts a data URL to a Blob
+ */
+function dataURLtoBlob(dataURL: string): Blob {
+  const arr = dataURL.split(',')
+  const mime = arr[0].match(/:(.*?);/)![1]
+  const bstr = atob(arr[1])
+  let n = bstr.length
+  const u8arr = new Uint8Array(n)
+  
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n)
+  }
+  
+  return new Blob([u8arr], { type: mime })
+}
+
+/**
+ * Converts a Blob to a data URL
+ */
+function blobToDataURL(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = reject
+    reader.readAsDataURL(blob)
+  })
+}
+
+/**
+ * Removes the background from an image using OpenAI's API
+ * @param imageUrl - URL or data URL of the image
+ * @returns A data URL of the image with background removed
+ */
 export async function removeBackground(imageUrl: string): Promise<string> {
   try {
-    // Mock implementation for demo - in production, use actual background removal API
+    // For demo/development without API key
+    if (import.meta.env.VITE_OPENAI_API_KEY === 'demo-key') {
+      console.log('Using mock background removal for:', imageUrl)
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      return imageUrl
+    }
+    
     console.log('Processing background removal for:', imageUrl)
     
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 2000))
+    // Convert to blob if it's a data URL
+    let imageBlob: Blob
+    if (imageUrl.startsWith('data:')) {
+      imageBlob = dataURLtoBlob(imageUrl)
+    } else {
+      // Fetch the image if it's a URL
+      const response = await fetch(imageUrl)
+      imageBlob = await response.blob()
+    }
     
-    // Return the same image for demo purposes
-    // In production, this would return the processed image
-    return imageUrl
+    // Create a FormData object to send the image
+    const formData = new FormData()
+    formData.append('image', imageBlob)
+    formData.append('model', 'background-removal')
+    
+    // Call the background removal API
+    const response = await fetch('https://api.openai.com/v1/images/edits', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`
+      },
+      body: formData
+    })
+    
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error?.message || 'Background removal API error')
+    }
+    
+    const data = await response.json()
+    const processedImageUrl = data.data[0].url
+    
+    // Fetch the processed image and convert to data URL
+    const processedImageResponse = await fetch(processedImageUrl)
+    const processedImageBlob = await processedImageResponse.blob()
+    const processedImageDataUrl = await blobToDataURL(processedImageBlob)
+    
+    return processedImageDataUrl
   } catch (error) {
     console.error('Background removal failed:', error)
     throw new Error('Failed to remove background')
   }
 }
 
+/**
+ * Generates design suggestions based on a prompt
+ * @param prompt - The design prompt
+ * @returns An array of design suggestions
+ */
 export async function generateDesignSuggestions(prompt: string): Promise<string[]> {
   try {
+    // For demo/development without API key
+    if (import.meta.env.VITE_OPENAI_API_KEY === 'demo-key') {
+      console.log('Using mock design suggestions for:', prompt)
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      return [
+        'Try a bold gradient background',
+        'Add some geometric shapes',
+        'Use contrasting text colors'
+      ]
+    }
+    
     const response = await openai.chat.completions.create({
       model: 'google/gemini-2.0-flash-001',
       messages: [

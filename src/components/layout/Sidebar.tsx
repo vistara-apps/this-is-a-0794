@@ -1,11 +1,13 @@
-import React from 'react'
+
 import { Home, Image, FolderOpen, Settings, Crown } from 'lucide-react'
 import { cn } from '../../lib/utils'
+import { Button } from '../ui/button'
 
 interface SidebarProps {
   activeTab: string
   onTabChange: (tab: string) => void
   userTier: 'free' | 'pro' | 'premium'
+  onUpgradeClick: () => void
 }
 
 const navigationItems = [
@@ -15,7 +17,7 @@ const navigationItems = [
   { id: 'settings', label: 'Settings', icon: Settings },
 ]
 
-export function Sidebar({ activeTab, onTabChange, userTier }: SidebarProps) {
+export function Sidebar({ activeTab, onTabChange, userTier, onUpgradeClick }: SidebarProps) {
   return (
     <div className="w-64 bg-white border-r border-gray-200 flex flex-col">
       {/* Logo */}
@@ -65,9 +67,21 @@ export function Sidebar({ activeTab, onTabChange, userTier }: SidebarProps) {
               : 'Enjoying premium features'}
           </p>
           {userTier === 'free' && (
-            <button className="w-full bg-white text-purple-700 py-2 px-4 rounded-md text-sm font-medium hover:bg-gray-100 transition-colors">
+            <Button 
+              className="w-full bg-white text-purple-700 hover:bg-gray-100"
+              onClick={onUpgradeClick}
+            >
               Upgrade Now
-            </button>
+            </Button>
+          )}
+          {userTier !== 'free' && (
+            <Button 
+              variant="outline"
+              className="w-full bg-transparent border-white text-white hover:bg-white hover:bg-opacity-10"
+              onClick={onUpgradeClick}
+            >
+              Manage Subscription
+            </Button>
           )}
         </div>
       </div>
