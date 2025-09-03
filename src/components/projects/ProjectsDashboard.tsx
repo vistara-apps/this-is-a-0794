@@ -2,54 +2,27 @@ import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
-import { Search, Calendar, FolderOpen, Trash2 } from 'lucide-react'
+import { Search, Calendar, FolderOpen, Trash2, Loader2, AlertCircle } from 'lucide-react'
 import { cn } from '../../lib/utils'
-
-interface Project {
-  id: string
-  name: string
-  template_id: string
-  preview?: string
-  created_at: string
-  updated_at: string
-}
+import { useProjects } from '../../context/ProjectContext'
+import { Project } from '../../lib/api'
 
 interface ProjectsDashboardProps {
   onOpenProject: (project: Project) => void
 }
 
-const mockProjects: Project[] = [
-  {
-    id: '1',
-    name: 'Social Media Campaign',
-    template_id: '1',
-    preview: 'https://images.unsplash.com/photo-1611224923853-80b023f02d71?w=400&h=300&fit=crop',
-    created_at: '2024-01-15T10:30:00Z',
-    updated_at: '2024-01-15T10:30:00Z'
-  },
-  {
-    id: '2',
-    name: 'Business Presentation',
-    template_id: '4',
-    preview: 'https://images.unsplash.com/photo-1551434678-e076c223a692?w=400&h=300&fit=crop',
-    created_at: '2024-01-14T15:45:00Z',
-    updated_at: '2024-01-14T15:45:00Z'
-  },
-  {
-    id: '3',
-    name: 'Instagram Story',
-    template_id: '2',
-    preview: 'https://images.unsplash.com/photo-1607799279861-4dd421887fb3?w=400&h=600&fit=crop',
-    created_at: '2024-01-13T09:20:00Z',
-    updated_at: '2024-01-13T09:20:00Z'
-  }
-]
-
 export function ProjectsDashboard({ onOpenProject }: ProjectsDashboardProps) {
-  const [projects, setProjects] = useState<Project[]>(mockProjects)
-  const [filteredProjects, setFilteredProjects] = useState<Project[]>(mockProjects)
+  const { projects, isLoading, error, deleteProject, fetchProjects } = useProjects()
+  const [filteredProjects, setFilteredProjects] = useState<Project[]>([])
   const [searchTerm, setSearchTerm] = useState('')
+  const [isDeleting, setIsDeleting] = useState<string | null>(null)
 
+  // Fetch projects on mount
+  useEffect(() => {
+    fetchProjects()
+  }, [])
+
+  // Filter projects when search term changes
   useEffect(() => {
     if (searchTerm) {
       setFilteredProjects(
@@ -62,8 +35,20 @@ export function ProjectsDashboard({ onOpenProject }: ProjectsDashboardProps) {
     }
   }, [projects, searchTerm])
 
-  const handleDeleteProject = (projectId: string) => {
-    setProjects(projects.filter(p => p.id !== projectId))
+  const handleDeleteProject = async (projectId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    
+    if (confirm('Are you sure you want to delete this project?')) {
+      setIsDeleting(projectId)
+      
+      try {
+        await deleteProject(projectId)
+      } catch (error) {
+        console.error('Failed to delete project:', error)
+      } finally {
+        setIsDeleting(null)
+      }
+    }
   }
 
   const formatDate = (dateString: string) => {
@@ -74,6 +59,17 @@ export function ProjectsDashboard({ onOpenProject }: ProjectsDashboardProps) {
     })
   }
 
+  if (isLoading && projects.length === 0) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-purple-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading your projects...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -81,6 +77,14 @@ export function ProjectsDashboard({ onOpenProject }: ProjectsDashboardProps) {
         <h1 className="text-3xl font-bold text-gray-900 mb-2">My Projects</h1>
         <p className="text-gray-600">Manage and access your saved designs</p>
       </div>
+
+      {/* Error message */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md flex items-start">
+          <AlertCircle className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" />
+          <p className="text-sm">{error}</p>
+        </div>
+      )}
 
       {/* Search */}
       <div className="relative max-w-md">
@@ -99,13 +103,16 @@ export function ProjectsDashboard({ onOpenProject }: ProjectsDashboardProps) {
           {filteredProjects.map((project) => (
             <Card
               key={project.id}
-              className="cursor-pointer transition-all duration-200 hover:shadow-lg group"
+              className={cn(
+                "cursor-pointer transition-all duration-200 hover:shadow-lg group",
+                isDeleting === project.id && "opacity-50"
+              )}
             >
               <CardContent className="p-0">
                 <div className="relative">
-                  {project.preview ? (
+                  {project.preview_url ? (
                     <img
-                      src={project.preview}
+                      src={project.preview_url}
                       alt={project.name}
                       className="w-full h-48 object-cover rounded-t-lg"
                     />
@@ -118,13 +125,15 @@ export function ProjectsDashboard({ onOpenProject }: ProjectsDashboardProps) {
                     <Button
                       variant="destructive"
                       size="icon"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleDeleteProject(project.id)
-                      }}
+                      onClick={(e) => handleDeleteProject(project.id, e)}
                       className="h-8 w-8"
+                      disabled={isDeleting === project.id}
                     >
-                      <Trash2 className="w-4 h-4" />
+                      {isDeleting === project.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4" />
+                      )}
                     </Button>
                   </div>
                 </div>

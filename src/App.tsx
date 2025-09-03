@@ -4,63 +4,40 @@ import { TemplateLibrary } from './components/templates/TemplateLibrary'
 import { DesignEditor } from './components/editor/DesignEditor'
 import { ProjectsDashboard } from './components/projects/ProjectsDashboard'
 import { AuthModal } from './components/auth/AuthModal'
+import { SubscriptionModal } from './components/subscription/SubscriptionModal'
 import { Button } from './components/ui/button'
-import { LogOut } from 'lucide-react'
+import { LogOut, Loader2 } from 'lucide-react'
+import { useAuth } from './context/AuthContext'
+import { useProjects } from './context/ProjectContext'
+import { useTemplates } from './context/TemplateContext'
+import { useSubscription } from './hooks/useSubscription'
+import { Template } from './lib/api'
 import './App.css'
 
-interface User {
-  id: string
-  email: string
-  name: string
-  subscription_tier: 'free' | 'pro' | 'premium'
-}
-
-interface Template {
-  id: string
-  name: string
-  category: string
-  preview_url: string
-  is_premium: boolean
-}
-
-interface Project {
-  id: string
-  name: string
-  template_id: string
-  preview?: string
-  created_at: string
-  updated_at: string
-}
-
 function App() {
-  const [user, setUser] = useState<User | null>(null)
+  const { user, profile, isLoading: authLoading, signOut } = useAuth()
+  const { projects, createProject, isLoading: projectsLoading } = useProjects()
+  const { templates, isLoading: templatesLoading } = useTemplates()
+  const { currentTier } = useSubscription()
+  
   const [activeTab, setActiveTab] = useState('templates')
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null)
-  const [editingProject, setEditingProject] = useState<Project | null>(null)
+  const [editingProject, setEditingProject] = useState<any>(null)
   const [showAuthModal, setShowAuthModal] = useState(false)
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false)
 
+  // Show auth modal if not authenticated
   useEffect(() => {
-    // Check for saved user session
-    const savedUser = localStorage.getItem('pixelspark-user')
-    if (savedUser) {
-      setUser(JSON.parse(savedUser))
-    } else {
+    if (!authLoading && !user) {
       setShowAuthModal(true)
     }
-  }, [])
+  }, [user, authLoading])
 
-  const handleAuth = (authenticatedUser: User) => {
-    setUser(authenticatedUser)
-    localStorage.setItem('pixelspark-user', JSON.stringify(authenticatedUser))
-  }
-
-  const handleLogout = () => {
-    setUser(null)
-    localStorage.removeItem('pixelspark-user')
+  const handleLogout = async () => {
+    await signOut()
     setActiveTab('templates')
     setSelectedTemplate(null)
     setEditingProject(null)
-    setShowAuthModal(true)
   }
 
   const handleSelectTemplate = (template: Template) => {
@@ -68,7 +45,7 @@ function App() {
     setEditingProject(null)
   }
 
-  const handleOpenProject = (project: Project) => {
+  const handleOpenProject = (project: any) => {
     setEditingProject(project)
     setSelectedTemplate(null)
   }
@@ -79,15 +56,43 @@ function App() {
     setActiveTab('templates')
   }
 
-  const handleSaveProject = (projectData: any) => {
-    console.log('Saving project:', projectData)
-    // In production, save to Supabase
-    setActiveTab('projects')
-    setSelectedTemplate(null)
-    setEditingProject(null)
+  const handleSaveProject = async (projectData: any) => {
+    if (!user) return
+    
+    try {
+      await createProject({
+        name: projectData.name,
+        template_id: projectData.template_id,
+        design_data: projectData.elements,
+        preview_url: projectData.preview
+      })
+      
+      setActiveTab('projects')
+      setSelectedTemplate(null)
+      setEditingProject(null)
+    } catch (error) {
+      console.error('Failed to save project:', error)
+    }
   }
 
-  if (!user) {
+  const handleUpgradeClick = () => {
+    setShowSubscriptionModal(true)
+  }
+
+  // Show loading state
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-purple-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading PixelSpark...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show login screen if not authenticated
+  if (!user || !profile) {
     return (
       <div className="min-h-screen gradient-bg flex items-center justify-center">
         <div className="text-center text-white">
@@ -100,12 +105,13 @@ function App() {
         <AuthModal 
           isOpen={showAuthModal} 
           onClose={() => setShowAuthModal(false)}
-          onAuth={handleAuth}
+          onAuth={() => {}} // Auth is now handled by AuthContext
         />
       </div>
     )
   }
 
+  // Show editor when editing a template or project
   if (selectedTemplate || editingProject) {
     return (
       <div className="h-screen">
@@ -124,12 +130,14 @@ function App() {
     )
   }
 
+  // Main application layout
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <Sidebar 
         activeTab={activeTab}
         onTabChange={setActiveTab}
-        userTier={user.subscription_tier}
+        userTier={currentTier}
+        onUpgradeClick={handleUpgradeClick}
       />
       
       <div className="flex-1 flex flex-col">
@@ -137,16 +145,27 @@ function App() {
         <div className="bg-white border-b px-6 py-4 flex justify-between items-center">
           <div>
             <h2 className="text-lg font-semibold text-gray-900">
-              Welcome back, {user.name}
+              Welcome back, {profile.name}
             </h2>
             <p className="text-sm text-gray-500">
-              {user.subscription_tier} plan
+              {currentTier.charAt(0).toUpperCase() + currentTier.slice(1)} plan
             </p>
           </div>
-          <Button variant="ghost" onClick={handleLogout}>
-            <LogOut className="w-4 h-4 mr-2" />
-            Logout
-          </Button>
+          <div className="flex items-center space-x-2">
+            {currentTier === 'free' && (
+              <Button 
+                variant="default" 
+                className="bg-gradient-purple hover:bg-purple-700"
+                onClick={handleUpgradeClick}
+              >
+                Upgrade
+              </Button>
+            )}
+            <Button variant="ghost" onClick={handleLogout}>
+              <LogOut className="w-4 h-4 mr-2" />
+              Logout
+            </Button>
+          </div>
         </div>
 
         {/* Main Content */}
@@ -154,7 +173,7 @@ function App() {
           {activeTab === 'templates' && (
             <TemplateLibrary 
               onSelectTemplate={handleSelectTemplate}
-              userTier={user.subscription_tier}
+              userTier={currentTier}
             />
           )}
           {activeTab === 'projects' && (
@@ -167,13 +186,34 @@ function App() {
             </div>
           )}
           {activeTab === 'settings' && (
-            <div className="text-center py-12">
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Account Settings</h3>
-              <p className="text-gray-500">Manage your account preferences and subscription</p>
+            <div className="space-y-6">
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Account Settings</h1>
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-xl font-semibold mb-4">Subscription</h2>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-700">Current Plan: <span className="font-medium capitalize">{currentTier}</span></p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {currentTier === 'free' 
+                        ? 'Upgrade to access premium features' 
+                        : 'You have access to premium features'}
+                    </p>
+                  </div>
+                  <Button onClick={handleUpgradeClick}>
+                    {currentTier === 'free' ? 'Upgrade Plan' : 'Manage Subscription'}
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
         </div>
       </div>
+      
+      {/* Subscription Modal */}
+      <SubscriptionModal 
+        isOpen={showSubscriptionModal}
+        onClose={() => setShowSubscriptionModal(false)}
+      />
     </div>
   )
 }
