@@ -12,9 +12,14 @@ import {
   Square, 
   Circle,
   ArrowLeft,
-  Loader2
+  Loader2,
+  AlertCircle
 } from 'lucide-react'
-import { removeBackground } from '../../lib/openai'
+import { removeBackground, generateDesignSuggestions } from '../../lib/openai'
+import { ShareModal } from '../sharing/ShareModal'
+import { useImageProcessing } from '../../hooks/useImageProcessing'
+import { useSubscription } from '../../hooks/useSubscription'
+import { exportElementAsImage, downloadImage } from '../../lib/export'
 import html2canvas from 'html2canvas'
 
 interface Template {
@@ -34,10 +39,17 @@ interface DesignEditorProps {
 export function DesignEditor({ template, onBack, onSave }: DesignEditorProps) {
   const canvasRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { isProcessing, error, processImage, removeImageBackground } = useImageProcessing()
+  const { currentTier, canUseFeature } = useSubscription()
+  
   const [elements, setElements] = useState<any[]>([])
   const [selectedElement, setSelectedElement] = useState<string | null>(null)
-  const [isProcessing, setIsProcessing] = useState(false)
   const [projectName, setProjectName] = useState(`${template.name} Project`)
+  const [previewUrl, setPreviewUrl] = useState<string>('')
+  const [showShareModal, setShowShareModal] = useState(false)
+  const [designSuggestions, setDesignSuggestions] = useState<string[]>([])
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false)
+  const [showSuggestions, setShowSuggestions] = useState(false)
 
   useEffect(() => {
     // Initialize with template elements
@@ -124,6 +136,7 @@ export function DesignEditor({ template, onBack, onSave }: DesignEditorProps) {
         style: {}
       }
       setElements([...elements, newElement])
+      setSelectedElement(newElement.id)
     }
     reader.readAsDataURL(file)
   }
@@ -133,20 +146,46 @@ export function DesignEditor({ template, onBack, onSave }: DesignEditorProps) {
 
     const element = elements.find(el => el.id === selectedElement)
     if (!element || element.type !== 'image') return
+    
+    // Check if user can use this feature
+    if (!canUseFeature('AI background removal')) {
+      alert('Background removal is a premium feature. Please upgrade your plan to use it.')
+      return
+    }
 
-    setIsProcessing(true)
     try {
-      const processedImageUrl = await removeBackground(element.content)
+      const processedImageUrl = await removeImageBackground(element.content)
       
-      setElements(elements.map(el => 
-        el.id === selectedElement 
-          ? { ...el, content: processedImageUrl }
-          : el
-      ))
+      if (processedImageUrl) {
+        setElements(elements.map(el => 
+          el.id === selectedElement 
+            ? { ...el, content: processedImageUrl }
+            : el
+        ))
+      }
     } catch (error) {
       console.error('Failed to remove background:', error)
+    }
+  }
+
+  const handleGetDesignSuggestions = async () => {
+    // Check if user can use this feature
+    if (!canUseFeature('Advanced AI tools')) {
+      alert('AI design suggestions are a premium feature. Please upgrade your plan to use it.')
+      return
+    }
+    
+    setIsLoadingSuggestions(true)
+    
+    try {
+      const prompt = `Design suggestions for a ${template.category} graphic with the title "${projectName}"`
+      const suggestions = await generateDesignSuggestions(prompt)
+      setDesignSuggestions(suggestions)
+      setShowSuggestions(true)
+    } catch (error) {
+      console.error('Failed to get design suggestions:', error)
     } finally {
-      setIsProcessing(false)
+      setIsLoadingSuggestions(false)
     }
   }
 
@@ -154,28 +193,68 @@ export function DesignEditor({ template, onBack, onSave }: DesignEditorProps) {
     if (!canvasRef.current) return
 
     try {
-      const canvas = await html2canvas(canvasRef.current, {
-        backgroundColor: '#ffffff',
-        scale: 2
+      // Generate preview image
+      const dataUrl = await exportElementAsImage(canvasRef.current, {
+        format: 'png',
+        fileName: projectName,
       })
       
-      const link = document.createElement('a')
-      link.download = `${projectName}.png`
-      link.href = canvas.toDataURL()
-      link.click()
+      // Save preview URL for sharing
+      setPreviewUrl(dataUrl)
+      
+      // Download the image
+      downloadImage(dataUrl, `${projectName}.png`)
     } catch (error) {
       console.error('Export failed:', error)
     }
   }
 
-  const handleSave = () => {
-    const projectData = {
-      name: projectName,
-      template_id: template.id,
-      elements,
-      created_at: new Date().toISOString()
+  const handleShare = async () => {
+    if (!canvasRef.current) return
+    
+    try {
+      // Generate preview image if not already generated
+      if (!previewUrl) {
+        const dataUrl = await exportElementAsImage(canvasRef.current, {
+          format: 'png',
+          fileName: projectName,
+        })
+        setPreviewUrl(dataUrl)
+      }
+      
+      // Open share modal
+      setShowShareModal(true)
+    } catch (error) {
+      console.error('Share preparation failed:', error)
     }
-    onSave(projectData)
+  }
+
+  const handleSave = async () => {
+    if (!canvasRef.current) return
+    
+    try {
+      // Generate preview image if not already generated
+      if (!previewUrl) {
+        const dataUrl = await exportElementAsImage(canvasRef.current, {
+          format: 'png',
+          fileName: projectName,
+        })
+        setPreviewUrl(dataUrl)
+      }
+      
+      // Save project data
+      const projectData = {
+        name: projectName,
+        template_id: template.id,
+        elements,
+        preview: previewUrl,
+        created_at: new Date().toISOString()
+      }
+      
+      onSave(projectData)
+    } catch (error) {
+      console.error('Save failed:', error)
+    }
   }
 
   const updateElement = (id: string, updates: any) => {
@@ -203,6 +282,10 @@ export function DesignEditor({ template, onBack, onSave }: DesignEditorProps) {
           <div className="flex items-center space-x-2">
             <Button variant="outline" onClick={handleSave}>
               Save Project
+            </Button>
+            <Button variant="outline" onClick={handleShare}>
+              <Share2 className="w-4 h-4 mr-2" />
+              Share
             </Button>
             <Button onClick={handleExport}>
               <Download className="w-4 h-4 mr-2" />
@@ -262,27 +345,64 @@ export function DesignEditor({ template, onBack, onSave }: DesignEditorProps) {
             </CardContent>
           </Card>
 
-          {selectedElement && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">AI Tools</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-start"
-                  onClick={handleRemoveBackground}
-                  disabled={isProcessing}
-                >
-                  {isProcessing ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Wand2 className="w-4 h-4 mr-2" />
-                  )}
-                  Remove Background
-                </Button>
-              </CardContent>
-            </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">AI Tools</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={handleRemoveBackground}
+                disabled={isProcessing || !selectedElement}
+              >
+                {isProcessing ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Wand2 className="w-4 h-4 mr-2" />
+                )}
+                Remove Background
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={handleGetDesignSuggestions}
+                disabled={isLoadingSuggestions}
+              >
+                {isLoadingSuggestions ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Wand2 className="w-4 h-4 mr-2" />
+                )}
+                Design Suggestions
+              </Button>
+              
+              {showSuggestions && designSuggestions.length > 0 && (
+                <div className="mt-2 space-y-2">
+                  <p className="text-xs font-medium text-gray-500">Suggestions:</p>
+                  <ul className="text-xs space-y-1">
+                    {designSuggestions.map((suggestion, index) => (
+                      <li key={index} className="p-2 bg-gray-50 rounded-md">{suggestion}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md flex items-start">
+              <AlertCircle className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
+              <p className="text-xs">{error}</p>
+            </div>
+          )}
+          
+          {currentTier === 'free' && (
+            <div className="bg-purple-50 border border-purple-200 text-purple-700 px-4 py-3 rounded-md text-xs">
+              <p className="font-medium mb-1">Premium Features Available</p>
+              <p>Upgrade your plan to access AI background removal, advanced design tools, and more.</p>
+            </div>
           )}
         </div>
 
@@ -349,6 +469,14 @@ export function DesignEditor({ template, onBack, onSave }: DesignEditorProps) {
           </div>
         </div>
       </div>
+      
+      {/* Share Modal */}
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        imageUrl={previewUrl}
+        projectName={projectName}
+      />
     </div>
   )
 }
