@@ -2,7 +2,8 @@ import { useState, useRef, useEffect } from 'react'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Input } from '../ui/input'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'
+// Dialog components are not used in this file
+// import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'
 import { 
   Download, 
   Share2, 

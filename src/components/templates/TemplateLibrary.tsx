@@ -5,7 +5,8 @@ import { Button } from '../ui/button'
 import { Card, CardContent } from '../ui/card'
 import { cn } from '../../lib/utils'
 import { useTemplates } from '../../context/TemplateContext'
-import { useSubscription } from '../../hooks/useSubscription'
+// useSubscription is imported but not used directly in this component
+// import { useSubscription } from '../../hooks/useSubscription'
 import { Template } from '../../lib/api'
 
 interface TemplateLibraryProps {

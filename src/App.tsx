@@ -17,7 +17,8 @@ import './App.css'
 function App() {
   const { user, profile, isLoading: authLoading, signOut } = useAuth()
   const { createProject } = useProjects()
-  const { templates } = useTemplates()
+  // Not using templates directly, but keeping the context for its provider functionality
+  const { /* templates */ } = useTemplates()
   const { currentTier } = useSubscription()
   
   const [activeTab, setActiveTab] = useState('templates')
