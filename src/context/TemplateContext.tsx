@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { templatesApi, Template } from '../lib/api'
 
 interface TemplateContextType {
@@ -104,4 +104,3 @@ export const useTemplates = () => {
   }
   return context
 }
-

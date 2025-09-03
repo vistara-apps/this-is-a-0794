@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { projectsApi, Project, CreateProjectData, UpdateProjectData } from '../lib/api'
 import { useAuth } from './AuthContext'
 
@@ -167,4 +167,3 @@ export const useProjects = () => {
   }
   return context
 }
-

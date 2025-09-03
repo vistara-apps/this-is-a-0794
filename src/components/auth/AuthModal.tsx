@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
@@ -11,7 +11,7 @@ interface AuthModalProps {
   onAuth: (user: any) => void
 }
 
-export function AuthModal({ isOpen, onClose, onAuth }: AuthModalProps) {
+export function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const { signIn, signUp } = useAuth()
   const [isLogin, setIsLogin] = useState(true)
   const [email, setEmail] = useState('')

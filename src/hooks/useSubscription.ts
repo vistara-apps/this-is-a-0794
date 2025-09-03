@@ -32,7 +32,7 @@ export function useSubscription(): UseSubscriptionReturn {
     
     try {
       // In a real implementation, this would redirect to Stripe Checkout
-      const checkoutUrl = await createCheckoutSession(plan.id, user.id)
+      await createCheckoutSession(plan.id, user.id)
       
       // For demo purposes, we'll just update the user's subscription tier
       // In a real app, this would happen after a successful Stripe webhook event
@@ -85,4 +85,3 @@ export function useSubscription(): UseSubscriptionReturn {
     canUseFeature
   }
 }
-

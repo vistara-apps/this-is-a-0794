@@ -81,7 +81,7 @@ export function shareToSocialMedia(
   url: string,
   title: string,
   description?: string,
-  imageUrl?: string
+  // imageUrl?: string (unused but kept for future implementation)
 ): void {
   let shareUrl = ''
   
@@ -102,4 +102,3 @@ export function shareToSocialMedia(
   
   window.open(shareUrl, '_blank')
 }
-

@@ -1,8 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Input } from '../ui/input'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'
 import { 
   Download, 
   Share2, 
@@ -15,12 +15,12 @@ import {
   Loader2,
   AlertCircle
 } from 'lucide-react'
-import { removeBackground, generateDesignSuggestions } from '../../lib/openai'
+import { generateDesignSuggestions } from '../../lib/openai'
 import { ShareModal } from '../sharing/ShareModal'
 import { useImageProcessing } from '../../hooks/useImageProcessing'
 import { useSubscription } from '../../hooks/useSubscription'
 import { exportElementAsImage, downloadImage } from '../../lib/export'
-import html2canvas from 'html2canvas'
+// html2canvas is used indirectly via exportElementAsImage
 
 interface Template {
   id: string
@@ -39,7 +39,7 @@ interface DesignEditorProps {
 export function DesignEditor({ template, onBack, onSave }: DesignEditorProps) {
   const canvasRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { isProcessing, error, processImage, removeImageBackground } = useImageProcessing()
+  const { isProcessing, error, removeImageBackground } = useImageProcessing()
   const { currentTier, canUseFeature } = useSubscription()
   
   const [elements, setElements] = useState<any[]>([])

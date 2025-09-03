@@ -1,8 +1,8 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'
 import { Button } from '../ui/button'
 import { PricingPlans } from './PricingPlans'
-import { SubscriptionPlan, SubscriptionTier, createCheckoutSession, redirectToCustomerPortal } from '../../lib/stripe'
+import { SubscriptionPlan, createCheckoutSession, redirectToCustomerPortal } from '../../lib/stripe'
 import { useAuth } from '../../context/AuthContext'
 import { Loader2 } from 'lucide-react'
 
@@ -26,7 +26,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
     
     try {
       // In a real implementation, this would redirect to Stripe Checkout
-      const checkoutUrl = await createCheckoutSession(plan.id, user.id)
+      await createCheckoutSession(plan.id, user.id)
       
       // For demo purposes, we'll just update the user's subscription tier
       // In a real app, this would happen after a successful Stripe webhook event
@@ -100,4 +100,3 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
     </Dialog>
   )
 }
-

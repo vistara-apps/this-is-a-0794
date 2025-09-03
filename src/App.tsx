@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Sidebar } from './components/layout/Sidebar'
 import { TemplateLibrary } from './components/templates/TemplateLibrary'
 import { DesignEditor } from './components/editor/DesignEditor'
@@ -16,8 +16,8 @@ import './App.css'
 
 function App() {
   const { user, profile, isLoading: authLoading, signOut } = useAuth()
-  const { projects, createProject, isLoading: projectsLoading } = useProjects()
-  const { templates, isLoading: templatesLoading } = useTemplates()
+  const { createProject } = useProjects()
+  const { templates } = useTemplates()
   const { currentTier } = useSubscription()
   
   const [activeTab, setActiveTab] = useState('templates')

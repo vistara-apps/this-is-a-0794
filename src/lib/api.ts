@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import { Database } from './supabase'
+// import { Database } from './supabase'
 
 // Project Types
 export interface Project {
@@ -154,7 +154,7 @@ export const assetsApi = {
     const filePath = `${userId}/${Date.now()}_${file.name.replace(/\s+/g, '_')}`
     
     // Upload to Supabase Storage
-    const { data: uploadData, error: uploadError } = await supabase
+    const { error: uploadError } = await supabase
       .storage
       .from('assets')
       .upload(filePath, file)
@@ -232,4 +232,3 @@ export const assetsApi = {
     return { error }
   }
 }
-

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Search, Filter, Crown, Loader2, AlertCircle } from 'lucide-react'
 import { Input } from '../ui/input'
 import { Button } from '../ui/button'
@@ -15,7 +15,7 @@ interface TemplateLibraryProps {
 
 export function TemplateLibrary({ onSelectTemplate, userTier }: TemplateLibraryProps) {
   const { templates, categories, isLoading, error, fetchTemplates } = useTemplates()
-  const { canUseFeature } = useSubscription()
+  // const { canUseFeature } = useSubscription()
   
   const [filteredTemplates, setFilteredTemplates] = useState<Template[]>([])
   const [searchTerm, setSearchTerm] = useState('')
